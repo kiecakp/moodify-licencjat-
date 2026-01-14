@@ -1,7 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Django
+db.sqlite3
+*.log
+
+# Environment variables
 .env
+
+# Cache
 .cache/
+.cache
+
+# Virtualenv
+venv/
+.venv/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Other
 node_modules/
-__pycahce__/
-dist/
-build/
 plan.txt
