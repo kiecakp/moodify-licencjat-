@@ -1,0 +1,124 @@
+moodify/
+│
+├── backend/                  ← Django
+│   ├── moodify_backend/
+│   ├── music/
+│   │   ├── models.py
+│   │   ├── views.py
+│   │   ├── serializers.py
+│   │   ├── services/
+│   │   │   ├── mood_classifier.py   ← użycie modelu ML
+│   │   │   └── language_detect.py
+│   │   └── scripts/
+│   │       ├── fetch_spotify.py
+│   │       ├── fetch_lyrics.py
+│   │       └── clean_lyrics.py
+│   └── manage.py
+│
+├── ml/                       ← UCZENIE MASZYNOWE
+│   ├── data/
+│   │   ├── raw/              ← dane z Kaggle / CSV
+│   │   ├── processed/        ← po czyszczeniu
+│   │   └── training.csv
+│   │
+│   ├── notebooks/
+│   │   ├── 01_exploration.ipynb
+│   │   ├── 02_preprocessing.ipynb
+│   │   └── 03_training.ipynb
+│   │
+│   ├── models/
+│   │   └── mood_model.pkl    ← zapisany model
+│   │
+│   ├── train.py              ← trenowanie modelu
+│   ├── predict.py            ← predykcja (offline)
+│   └── utils.py
+│
+├── frontend/                 ← FRONTEND
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   └── api.js
+│   └── package.json
+│
+├── .env
+├── requirements.txt
+└── README.md
+
+
+🔹 1. CZĘŚĆ: DANE TRENINGOWE + BAZA DANYCH
+Co tu robisz:
+
+- Spotify → tytuł, artysta
+- Genius → tekst
+- Kaggle → tekst + mood (do trenowania)
+
+Efekt:
+
+- baza Django → realne piosenki użytkowe
+- CSV → dane treningowe ML
+
+📌 W pracy:
+
+„W pierwszym etapie projektu pozyskano dane tekstowe utworów muzycznych z wykorzystaniem zewnętrznych API oraz publicznych zbiorów danych.”
+
+🔹 2. CZĘŚĆ: MACHINE LEARNING (SERCE PRACY)
+
+Tu robisz wszystko, co promotor kocha:
+
+Pipeline ML:
+
+1. Detekcja języka
+2. Czyszczenie tekstu
+3. TF-IDF
+4. Klasyfikator (np. Logistic Regression / SVM)
+5. Ewaluacja
+6. Zapis modelu .pkl
+
+📁 ml/train.py:
+
+model.fit(X_train, y_train)
+joblib.dump(model, "models/mood_model.pkl")
+
+
+📌 W pracy:
+
+„Zaprojektowano i wytrenowano własny model klasyfikacji nastroju utworów muzycznych na podstawie treści tekstowej.”
+
+🔹 3. CZĘŚĆ: INTEGRACJA Z BACKENDEM
+Co robi Django:
+
+- bierze tekst piosenki z bazy
+- ładuje model ML
+- przewiduje nastrój
+- zapisuje mood_tag
+
+📁 services/mood_classifier.py:
+
+model = joblib.load("ml/models/mood_model.pkl")
+
+def classify(text):
+    return model.predict([text])[0]
+
+
+📌 W pracy:
+
+„Model został zintegrowany z aplikacją webową w celu automatycznej klasyfikacji nastroju utworów.”
+
+🔹 4. FRONTEND (MINIMALNY, ALE WYSTARCZY)
+
+Wystarczy:
+
+- lista piosenek
+- przycisk „klasyfikuj”
+- wyświetlenie nastroju
+
+Promotor nie oczekuje fajerwerków UI.
+
+📚 JAK TO OPISAĆ W ROZDZIAŁACH PRACY
+1. Wstęp
+2. Przegląd technologii (Spotify API, NLP, ML)
+3. Pozyskiwanie i przygotowanie danych
+4. Projekt i implementacja modelu ML
+5. Integracja systemu i aplikacja webowa
+6. Testy i analiza wyników
+7. Podsumowanie
