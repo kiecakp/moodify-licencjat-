@@ -4,3 +4,4 @@ node_modules/
 __pycahce__/
 dist/
 build/
+plan.txt
