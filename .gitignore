@@ -5,6 +5,7 @@ __pycache__/
 # Django
 db.sqlite3
 *.log
+logs
 
 # Environment variables
 .env
@@ -19,9 +20,11 @@ venv/
 
 # OS / editor
 .DS_Store
-.vscode/
+.vscode/*
 .idea/
 
 # Other
 node_modules/
+node_modules
+dist
 plan.txt
