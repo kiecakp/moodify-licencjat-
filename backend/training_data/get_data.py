@@ -4,8 +4,9 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 import lyricsgenius
-from langdetect import detect
+from langdetect import detect, LangDetectException
 from deep_translator import GoogleTranslator
+from deep_translator.exceptions import NotValidPayload, TranslationNotFound
 
 load_dotenv()
 GENIUS_TOKEN = os.getenv("GENIUS_API_TOKEN")
@@ -114,36 +115,64 @@ def fetch_lyrics_for_all_tracks(save_every=10):
   total = len(rows)
   changes_since_save = 0
   skipped_count = 0
-  removed_count = 0
+  removed_no_lyrics = 0
+  removed_translation_failed = 0
   
   for idx, row in enumerate(rows, 1):
     title = row[0]
     artist = row[1]
     
     # Check if lyrics already exist
-    if row[6].strip():
-      print(f"[{idx}/{total}] ⏭️  Skipping {title} - already has lyrics")
+    if row[6].strip() and row[8].strip():
+      print(f"[{idx}/{total}] ⏭️  Skipping {title} - already processed")
       updated_rows.append(row)
       skipped_count += 1
       continue
     
     print(f"[{idx}/{total}] 🔍 Fetching: {title} by {artist}")
-    lyrics = fetch_lyrics_for_track(title, artist)
 
-    if not lyrics.strip():
-      print(f"[{idx}/{total}] ❌ No lyrics found - REMOVING from dataset")
-      removed_count += 1
-      continue  # Skip adding this row
-
-    row[6] = lyrics
-    row[7] = detect_language(lyrics) if lyrics else ""
-    row[8] = translate_to_english(lyrics) if row[7] != "en" else lyrics
+    # Fetch lyrics if not present
+    if not row[6].strip():
+      lyrics = fetch_lyrics_for_track(title, artist)
+      
+      if not lyrics.strip():
+        print(f"[{idx}/{total}] ❌ No lyrics found - REMOVING from dataset")
+        removed_no_lyrics += 1
+        continue  # Skip adding this row
+      
+      row[6] = lyrics
+    else:
+      lyrics = row[6]
+    
+    # Detect language
+    detected_lang = detect_language(lyrics)
+    if not detected_lang:
+      print(f"[{idx}/{total}] ❌ Language detection failed - REMOVING from dataset")
+      removed_translation_failed += 1
+      continue
+    
+    row[7] = detected_lang
+    
+    # Translate to English if needed
+    if detected_lang != "en":
+      print(f"[{idx}/{total}] 🌐 Translating from {detected_lang} to English...")
+      translated = translate_to_english(lyrics, detected_lang)
+      
+      if not translated:
+        print(f"[{idx}/{total}] ❌ Translation failed - REMOVING from dataset")
+        removed_translation_failed += 1
+        continue
+      
+      row[8] = translated
+    else:
+      row[8] = lyrics
+    
     updated_rows.append(row)
     changes_since_save += 1
     
     # Save progress periodically
     if changes_since_save >= save_every or idx == total:
-      print(f"💾 Saving progress... ({len(updated_rows)}/{total} tracks kept)")
+      print(f"💾 Saving progress... ({len(updated_rows)}/{idx} tracks kept)")
       with open(CSV_FILE, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(headers)
@@ -152,34 +181,57 @@ def fetch_lyrics_for_all_tracks(save_every=10):
 
   print(f"\n✅ Processing complete!")
   print(f"   📊 Total processed: {total}")
-  print(f"   ⏭️  Already had lyrics: {skipped_count}")
-  print(f"   ✅ Successfully fetched: {len(updated_rows) - skipped_count}")
-  print(f"   ❌ Removed (no lyrics): {removed_count}")
+  print(f"   ⏭️  Already had data: {skipped_count}")
+  print(f"   ✅ Successfully processed: {len(updated_rows) - skipped_count}")
+  print(f"   ❌ Removed (no lyrics): {removed_no_lyrics}")
+  print(f"   ❌ Removed (translation failed): {removed_translation_failed}")
   print(f"   📁 Final dataset size: {len(updated_rows)} tracks\n")
 
 def detect_language(text):
   try:
+    if not text or not text.strip():
+      return None
     return detect(text)
-  except:
-    return "unknown"
+  except LangDetectException as e:
+    print(f"⚠️  Language detection failed: {e}")
+    return None
+  except Exception as e:
+    print(f"⚠️  Unexpected error in language detection: {e}")
+    return None
 
-def translate_to_english(text):
+def translate_to_english(text, detected_lang):
+  #Translate text to English. Returns None if translation fails
   try:
-    # Detect text language
-    detected_lang = detect_language(text)
-        
+    # If text is empty or None
+    if not text or not text.strip():
+      print(f"⚠️  Empty text, cannot translate")
+      return None
+    
+    # If language detection failed
+    if not detected_lang or detected_lang == "unknown":
+      print(f"⚠️  Unknown language, cannot translate")
+      return None
+    
     # If text is already in English, return it unchanged
     if detected_lang == 'en':
       return text
-        
-    # Translate to English
+    
+    # Try to translate to English
     translator = GoogleTranslator(source=detected_lang, target='en')
     translated = translator.translate(text)
-        
+    
+    # Check if translation was successful
+    if not translated or not translated.strip():
+      print(f"⚠️  Translation returned empty result")
+      return None
+    
     return translated
-        
+    
+  except (TranslationNotFound, NotValidPayload) as e:
+    print(f"⚠️  Translation error: {e}")
+    return None
   except Exception as e:
-    print(f"❌ Error translating text: {e}")
+    print(f"⚠️  Unexpected translation error: {e}")
     return None
 
 if __name__ == "__main__":

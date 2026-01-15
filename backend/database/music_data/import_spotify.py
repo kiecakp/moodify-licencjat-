@@ -5,8 +5,9 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 import lyricsgenius
-from langdetect import detect
+from langdetect import detect, LangDetectException
 from deep_translator import GoogleTranslator
+from deep_translator.exceptions import NotValidPayload, TranslationNotFound
 from datetime import datetime
 
 # Django setup - adjust the path to project structure
@@ -49,26 +50,51 @@ def fetch_lyrics(title, artist):
     song = genius.search_song(title, artist)
     if song and song.lyrics:
       return song.lyrics
-    return ""
+    return None
   except Exception as e:
     print(f"❌ Error fetching lyrics for {title} by {artist}: {e}")
-    return ""
+    return None
 
 def detect_language(text):
   try:
+    if not text or not text.strip():
+      return None
     return detect(text)
-  except:
-    return "unknown"
+  except LangDetectException as e:
+    print(f"⚠️  Language detection failed: {e}")
+    return None
+  except Exception as e:
+    print(f"⚠️  Unexpected error in language detection: {e}")
+    return None
 
 def translate_to_english(text, source_lang):
+  if not text or not text.strip():
+    print(f"⚠️  Empty text, cannot translate")
+    return None
+  
+  if not source_lang or source_lang == "unknown":
+    print(f"⚠️  Unknown language, cannot translate")
+    return None
+  
   if source_lang == "en":
     return text
+  
   try:
     translator = GoogleTranslator(source=source_lang, target="en")
-    return translator.translate(text)
+    translated = translator.translate(text)
+    
+    if not translated or not translated.strip():
+      print(f"⚠️  Translation returned empty result")
+      return None
+    
+    return translated
+    
+  except (TranslationNotFound, NotValidPayload) as e:
+    print(f"⚠️  Translation error: {e}")
+    return None
   except Exception as e:
-    print(f"❌ Error translating text: {e}")
-    return text
+    print(f"⚠️  Unexpected translation error: {e}")
+    return None
 
 def import_playlist(playlist_url: str):
   playlist_id = playlist_url.split("/")[-1].split("?")[0]
@@ -82,28 +108,34 @@ def import_playlist(playlist_url: str):
     tracks.extend(results["items"])
 
   saved = 0
-  skipped = 0
+  skipped_existing = 0
+  skipped_no_lyrics = 0
+  skipped_lang_detection = 0
+  skipped_translation = 0
 
-  for item in tracks:
+  for idx, item in enumerate(tracks, 1):
     track = item.get("track")
     if not track or not track.get("id"):
       continue
 
     spotify_id = track["id"]
-
-    if Track.objects.filter(spotify_id=spotify_id).exists():
-      print(f"⏭️  Skipping {track['name']} – already in database")
-      skipped += 1
-      continue
-        
     title = track["name"]
     artist = track["artists"][0]["name"]
+
+    print(f"\n[{idx}/{len(tracks)}] Processing: {title} by {artist}")
+
+    # Check if already exists
+    if Track.objects.filter(spotify_id=spotify_id).exists():
+      print(f"⏭️  Already in database")
+      skipped_existing += 1
+      continue
+    
     album = track["album"]["name"]
     spotify_url = track["external_urls"]["spotify"]
-
     release_date_str = track["album"].get("release_date", "")
     explicit = track.get("explicit", False)
         
+    # Parse release date
     release_date = None
     if release_date_str:
       try:
@@ -118,35 +150,58 @@ def import_playlist(playlist_url: str):
 
     # Get lyrics
     lyrics = fetch_lyrics(title, artist)
-
-    if not lyrics.strip():
-      print(f"⏭️  Skipping {title} - no lyrics found")
-      skipped += 1
+    if not lyrics or not lyrics.strip():
+      print(f"❌ No lyrics found - SKIPPING")
+      skipped_no_lyrics += 1
       continue
 
-    # Detect language and translate
+    # Detect language
     lang = detect_language(lyrics)
-    lyrics_en = translate_to_english(lyrics, lang)
+    if not lang:
+      print(f"❌ Language detection failed - SKIPPING")
+      skipped_lang_detection += 1
+      continue
+
+    # Translate to English if needed
+    if lang != "en":
+      print(f"🌐 Translating from {lang} to English...")
+      lyrics_en = translate_to_english(lyrics, lang)
+      
+      if not lyrics_en:
+        print(f"❌ Translation failed - SKIPPING")
+        skipped_translation += 1
+        continue
+    else:
+      lyrics_en = lyrics
 
     # Save to database
-    Track.objects.update_or_create(
-      spotify_id=track["id"],
-      defaults={
-        "title": title,
-        "artist": artist,
-        "album": album,
-        "spotify_url": spotify_url,
-        "release_date": release_date,
-        "explicit": explicit,
-        "lyrics": lyrics,
-        "lyrics_language": lang,
-        "lyrics_en": lyrics_en,
-     },
-    )
-    saved += 1
-    print(f"Saved: {title} ({lang})")
+    try:
+      Track.objects.update_or_create(
+        spotify_id=spotify_id,
+        defaults={
+          "title": title,
+          "artist": artist,
+          "album": album,
+          "spotify_url": spotify_url,
+          "release_date": release_date,
+          "explicit": explicit,
+          "lyrics": lyrics,
+          "lyrics_language": lang,
+          "lyrics_en": lyrics_en,
+        },
+      )
+      saved += 1
+      print(f"✅ Saved successfully ({lang})")
+    except Exception as e:
+      print(f"❌ Database error: {e}")
+      continue
 
-  print(f"\n📊 Finished importing playlist. Saved: {saved}, Skipped: {skipped}")
+  print(f"   Total tracks in playlist: {len(tracks)}")
+  print(f"   ✅ Successfully saved: {saved}")
+  print(f"   ⏭️  Already in database: {skipped_existing}")
+  print(f"   ❌ No lyrics found: {skipped_no_lyrics}")
+  print(f"   ❌ Language detection failed: {skipped_lang_detection}")
+  print(f"   ❌ Translation failed: {skipped_translation}")
 
 if __name__ == "__main__":
   playlists = [
