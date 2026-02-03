@@ -47,6 +47,24 @@ def ensure_csv_exists():
   else:
     print("📄 The training_data.csv file already exists - adding data")
 
+def get_existing_tracks():
+  existing = set()
+  
+  if not os.path.exists(CSV_FILE):
+    return existing
+  
+  with open(CSV_FILE, mode="r", newline="", encoding="utf-8") as f:
+    reader = csv.reader(f)
+    next(reader)  # Skip header
+    for row in reader:
+      if len(row) >= 2:
+        # Create unique identifier from title and artist
+        title = row[0].strip().lower()
+        artist = row[1].strip().lower()
+        existing.add((title, artist))
+  
+  return existing
+
 def fetch_tracks_and_save(playlist_url, mood_tag):
   playlist_id = playlist_url.split("/")[-1].split("?")[0]
 
@@ -63,6 +81,12 @@ def fetch_tracks_and_save(playlist_url, mood_tag):
 
   print(f"\n📚 Found {len(tracks)} tracks.")
 
+  # Get existing tracks to avoid duplicates
+  existing_tracks = get_existing_tracks()
+  
+  new_tracks = 0
+  skipped_duplicates = 0
+
   # Save to CSV
   with open(CSV_FILE, mode="a", newline="", encoding="utf-8") as f:
     writer = csv.writer(f)
@@ -74,6 +98,14 @@ def fetch_tracks_and_save(playlist_url, mood_tag):
       
       title = track.get("name", "")
       artist = track["artists"][0]["name"] if track.get("artists") else ""
+
+      # Check if track already exists
+      track_id = (title.strip().lower(), artist.strip().lower())
+      if track_id in existing_tracks:
+        print(f"⏭️  Skipping duplicate: {title} by {artist}")
+        skipped_duplicates += 1
+        continue
+
       album = track["album"]["name"] if track.get("album") else ""
       release_date = track["album"].get("release_date", "") if track.get("album") else ""
       mood_tag_value = mood_tag
@@ -91,6 +123,11 @@ def fetch_tracks_and_save(playlist_url, mood_tag):
           ""   # Placeholder for text_EN
       ])
 
+      existing_tracks.add(track_id)
+      new_tracks += 1
+      print(f"+ Added: {title} by {artist} to existing tracks.")
+
+  print(f"   ⏭️  Duplicates skipped: {skipped_duplicates}\n")
   print("\n✅ All data has been saved to training_data.csv\n")
 
 def fetch_lyrics_for_track(title, artist):
@@ -111,7 +148,7 @@ def fetch_lyrics_for_all_tracks(save_every=10):
     headers = reader[0]
     rows = reader[1:]
 
-  updated_rows = []
+  updated_rows = []  # Zaczynamy od pustej listy!
   total = len(rows)
   changes_since_save = 0
   skipped_count = 0
@@ -125,7 +162,7 @@ def fetch_lyrics_for_all_tracks(save_every=10):
     # Check if lyrics already exist
     if row[6].strip() and row[8].strip():
       print(f"[{idx}/{total}] ⏭️  Skipping {title} - already processed")
-      updated_rows.append(row)
+      updated_rows.append(row)  # Dodajemy już przetworzone utwory
       skipped_count += 1
       continue
     
@@ -138,7 +175,7 @@ def fetch_lyrics_for_all_tracks(save_every=10):
       if not lyrics.strip():
         print(f"[{idx}/{total}] ❌ No lyrics found - REMOVING from dataset")
         removed_no_lyrics += 1
-        continue  # Skip adding this row
+        continue  # NIE dodajemy do updated_rows - utwór zostanie usunięty
       
       row[6] = lyrics
     else:
@@ -149,7 +186,7 @@ def fetch_lyrics_for_all_tracks(save_every=10):
     if not detected_lang:
       print(f"[{idx}/{total}] ❌ Language detection failed - REMOVING from dataset")
       removed_translation_failed += 1
-      continue
+      continue  # NIE dodajemy do updated_rows
     
     row[7] = detected_lang
     
@@ -161,12 +198,13 @@ def fetch_lyrics_for_all_tracks(save_every=10):
       if not translated:
         print(f"[{idx}/{total}] ❌ Translation failed - REMOVING from dataset")
         removed_translation_failed += 1
-        continue
+        continue  # NIE dodajemy do updated_rows
       
       row[8] = translated
     else:
       row[8] = lyrics
     
+    # TYLKO tutaj dodajemy utwór do updated_rows (jeśli wszystko się powiodło)
     updated_rows.append(row)
     changes_since_save += 1
     
@@ -241,15 +279,23 @@ if __name__ == "__main__":
     ],
     "chill": [
       "https://open.spotify.com/playlist/1Q8dkQapMQEtvjSpwX3TF5",
-      "https://open.spotify.com/playlist/4YPmYcv3ApsLjYtnrmxBlj"
+      "https://open.spotify.com/playlist/4YPmYcv3ApsLjYtnrmxBlj",
+      "https://open.spotify.com/playlist/1kP7p1pYQ8SBixphVEpTWI?si=iKaY6-VAStezefZnQE1OFw",
+      "https://open.spotify.com/playlist/0k0WKMaoZs46MFTYHwZku5?si=ybZxCYJBTrex9jFm3IjDAA"
     ],
     "energetic": [
       "https://open.spotify.com/playlist/4FRszV25nNzLh049e40XT4",
-      "https://open.spotify.com/playlist/1aDiFEvcaGkCX6XuhzpCge"
+      "https://open.spotify.com/playlist/1aDiFEvcaGkCX6XuhzpCge",
+      "https://open.spotify.com/playlist/3nzFGJRv4P7avktrDg8uro?si=e03Am_1CSo6O_B-NIxJw_w",
+      "https://open.spotify.com/playlist/3jbslfKMLLri91JYUXqEKz?si=LqYAwx8TS8K6hlSbszi42g"
     ],
     "sad": [
       "https://open.spotify.com/playlist/1iJ8iy1XIFDppTC8ZNlPiz",
-      "https://open.spotify.com/playlist/4KXWa5lSs3Mfc624iblABa"
+      "https://open.spotify.com/playlist/4KXWa5lSs3Mfc624iblABa",
+      "https://open.spotify.com/playlist/5mLIo3cu4cJRcdjzfMpQZt?si=5zts0u4aQ-WvH-tSME6r3g",
+      "https://open.spotify.com/playlist/3c0Nv5CY6TIaRszlTZbUFk?si=yMuBA4ALRmq76ufO79RESA",
+      "https://open.spotify.com/playlist/2ZnAWYy4AOs8tpRUCGF6Py?si=Um6SybesRGmVkE7S6KOGiw",
+      "https://open.spotify.com/playlist/4XAU8RJylpzxltN8R7vfzZ?si=O3KUhfXQTuuCYbHHe6twvA"
     ]
   }
 
