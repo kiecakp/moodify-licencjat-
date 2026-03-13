@@ -5,7 +5,12 @@ from .base_model import BaseModel
 class LogisticRegressionModel(BaseModel):
     """
     Regresja logistyczna z regularyzacją L2.
+    (Oblicza prawdopodobieństwo przynależności do klasy, a następnie 
+    dokonuje klasyfikacji wybierając najbardziej prawdopodobną klasę).
+
     Dobry punkt odniesienia — interpretowalny i szybki.
+    Prosty model, pełni rolę "bazowego" do porównania z bardziej złożonymi 
+    modelami (SVM, RF, NB).
     """
 
     name = "LogisticRegression"

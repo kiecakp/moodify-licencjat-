@@ -4,7 +4,10 @@ from .base_model import BaseModel
 
 class SVMModel(BaseModel):
     """
-    Klasyfikator SVM (LinearSVC).
+    Klasyfikator SVM - Support Vector Machine (LinearSVC - liniowy).
+    Model, który szuka linii podziału (hiperpłaszczyzny) która najlepiej 
+    oddziela klasy w przestrzeni cech.
+    
     Parametr C kontroluje regularyzację — im wyższe C, tym mniej regularyzacji.
     """
 

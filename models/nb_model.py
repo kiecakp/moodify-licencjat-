@@ -7,7 +7,8 @@ from .base_model import BaseModel
 
 class NaiveBayesModel(BaseModel):
     """
-    Naive Bayes — hybrydowy klasyfikator:
+    Naive Bayes — algorytm probabilistyczny oparty na założeniu niezależności cech.
+    Używa dwóch wartiantów NB w zależności od typu danych:
       - MultinomialNB dla cech TF-IDF (wymaga wartości nieujemnych)
       - GaussianNB dla cech gęstych (BERT + VADER)
 
@@ -55,8 +56,6 @@ class NaiveBayesModel(BaseModel):
 
         if self.mode == 'bert':
             dense = X_bert_test.copy()
-            if X_vader_test is not None:
-                dense = np.hstack([dense, X_vader_test])
             dense_scaled = self.scaler.transform(dense)
             return self.gnb.predict(dense_scaled)
 

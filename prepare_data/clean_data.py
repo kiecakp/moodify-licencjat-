@@ -1,8 +1,8 @@
 import csv
 import os
 
-INPUT_CSV = 'test/training_data_watki.csv'
-OUTPUT_CSV = 'test/cleaned_training_data_watki.csv'
+INPUT_CSV = "../data/training_data.csv"
+OUTPUT_CSV = "../data/cleaned_training_data.csv"
 
 def clean_data():
   if not os.path.exists(INPUT_CSV):
@@ -29,7 +29,7 @@ def clean_data():
     writer.writerow(header)
     writer.writerows(cleaned_rows)
 
-  print("🧹 Cleanup complete")
+  print("Cleanup complete")
   print(f"   ❌ Rows removed (empty LYRICS_EN): {removed_count}")
   print(f"   📁 Clean dataset saved as: {OUTPUT_CSV}")
   print(f"   ✅ Final size: {len(cleaned_rows)} rows")

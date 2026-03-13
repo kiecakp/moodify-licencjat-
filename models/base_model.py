@@ -5,16 +5,15 @@ from sklearn.preprocessing import StandardScaler
 
 class BaseModel:
     """
-    Klasa bazowa dla wszystkich klasyfikatorów nastroju.
+    BaseModel: klasa bazowa/szablon definiująca wspólne zachowanie dla
+    wszystkich modeli (SVM, LR, RF, NB).
 
-    Każdy model obsługuje trzy tryby reprezentacji cech:
-      - 'tfidf'    : tylko cechy TF-IDF
+    Każdy model można trenować w trzech trybach w zależności od tego, 
+    które cechy chcemy wykorzystać:
+      - 'tfidf'    : tylko cechy TF-IDF (tylko słowa z tekstu)
       - 'bert'     : embeddingi BERT + cechy VADER
-      - 'combined' : TF-IDF + BERT + VADER łącznie
+      - 'combined' : TF-IDF + BERT + VADER łącznie (wszystko razem).
 
-    Podklasy muszą zdefiniować:
-      - self.name  (str)  : wyświetlana nazwa modelu
-      - self.clf          : obiekt klasyfikatora zgodny z API scikit-learn
     """
 
     name = "BaseModel"
