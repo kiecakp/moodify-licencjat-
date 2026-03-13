@@ -1,8 +1,8 @@
 import csv
 import os
 
-INPUT_CSV = 'ml/data/training_data.csv'
-OUTPUT_CSV = 'ml/data/cleaned_training_data.csv'
+INPUT_CSV = 'test/training_data_watki.csv'
+OUTPUT_CSV = 'test/cleaned_training_data_watki.csv'
 
 def clean_data():
   if not os.path.exists(INPUT_CSV):
