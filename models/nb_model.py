@@ -4,7 +4,6 @@ from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.preprocessing import MinMaxScaler
 from .base_model import BaseModel
 
-
 class NaiveBayesModel(BaseModel):
     """
     Naive Bayes — algorytm probabilistyczny oparty na założeniu niezależności cech.
@@ -21,23 +20,24 @@ class NaiveBayesModel(BaseModel):
 
     def __init__(self, mode='combined'):
         super().__init__(mode=mode)
-        self.mnb = MultinomialNB()
-        self.gnb = GaussianNB()
-        self.minmax = MinMaxScaler()
-        # clf jest placeholderem — NaiveBayes używa własnej logiki predict
-        self.clf = None
-        self._classes = None
+        self.mnb = MultinomialNB()  # tworzy klasyfikator dla TF-IDF
+        self.gnb = GaussianNB()     # tworzy klasyfikator dla BERT i VADER
+        self.minmax = MinMaxScaler()    # scaler dla TF-IDF, zapewnia nieujemnosc 
+        self.clf = None         # clf jest placeholderem — NaiveBayes używa własnej logiki predict
+        self._classes = None    # nazwy klas (angry, happy, relaxed, sad)
 
     def train(self, X_tfidf_train, X_vader_train, X_bert_train, y_train):
         print(f"  Training [{self.name} | {self.mode}]...")
         self._classes = np.unique(y_train)
 
+        # blok dla MultinominalNB, odpala sie gdy tryb to 'tfidf' lub 'combined'
         if self.mode in ('tfidf', 'combined'):
             # MinMaxScaler żeby zapewnić nieujemność dla MultinomialNB
             tfidf_dense = X_tfidf_train.toarray() if issparse(X_tfidf_train) else X_tfidf_train
             tfidf_scaled = self.minmax.fit_transform(tfidf_dense)
             self.mnb.fit(tfidf_scaled, y_train)
 
+        # blok dla GaussianNB, odpala sie gdy tryb to 'bert' lub 'combined'
         if self.mode in ('bert', 'combined'):
             dense = X_bert_train.copy()
             if X_vader_train is not None and self.mode == 'combined':

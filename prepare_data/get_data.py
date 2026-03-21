@@ -12,14 +12,12 @@ from threading import Lock
 
 load_dotenv()
 
-# ─── Konfiguracja ────────────────────────────────────────────────────────────
-
 INPUT_XLSX  = "../data/ml_balanced.xlsx"
 OUTPUT_CSV  = "../data/training_data.csv"
 SAVE_EVERY  = 20
-WORKERS     = 5   # liczba równoległych wątków (nie przekraczaj 8 - limit Genius)
+WORKERS     = 5   # liczba rownoleglych watkow (nie przekraczaj 8 - limit Genius)
 
-# ─── Genius API (osobna instancja na wątek) ───────────────────────────────────
+# -------- Genius API (osobna instancja na watek) ----------------------------
 
 GENIUS_TOKEN = os.getenv("GENIUS_API_TOKEN")
 
@@ -42,25 +40,29 @@ def get_genius():
         _local.genius = make_genius()
     return _local.genius
 
-# ─── Wczytywanie danych ───────────────────────────────────────────────────────
+# -------- Wczytywanie danych ----------------------------
 
 def load_from_xlsx(path: str) -> list[dict]:
     df = pd.read_excel(path, header=None)
+
     header_row = next(
         (i for i, row in df.iterrows() if str(row[0]).strip() == "Index"), None
     )
+
     if header_row is None:
         raise ValueError(f"Nie znaleziono naglowka 'Index' w: {path}")
+
     data = df.iloc[header_row + 1:].copy()
     data.columns = ["index", "artist", "title", "mood"]
     data = data.dropna(subset=["artist", "title", "mood"]).reset_index(drop=True)
     print(f"  {path}: {len(data)} piosenek")
     return data.to_dict(orient="records")
 
-# ─── Obsługa pliku wyjściowego ────────────────────────────────────────────────
+# -------- Obsluga pliku wyjsciowego ----------------------------
 
 def ensure_csv_exists():
     os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
+
     if not os.path.exists(OUTPUT_CSV):
         with open(OUTPUT_CSV, mode="w", newline="", encoding="utf-8") as f:
             csv.writer(f).writerow(["TITLE", "ARTIST", "MOOD_TAG", "LYRICS", "LYRICS_LANGUAGE", "LYRICS_EN"])
@@ -71,12 +73,13 @@ def ensure_csv_exists():
 def get_existing_tracks() -> set:
     if not os.path.exists(OUTPUT_CSV):
         return set()
+
     with open(OUTPUT_CSV, mode="r", newline="", encoding="utf-8") as f:
         reader = csv.reader(f)
         next(reader)
         return {(row[0].strip().lower(), row[1].strip().lower()) for row in reader if len(row) >= 2}
 
-# ─── Przetwarzanie jednej piosenki ────────────────────────────────────────────
+# -------- Przetwarzanie jednej piosenki ----------------------------
 
 def detect_language(text: str) -> str | None:
     try:
@@ -125,12 +128,12 @@ def process_one(song: dict) -> tuple[str, list | None]:
 
     return ("ok", [title, artist, mood, lyrics, lang, lyrics_en])
 
-# ─── Główna pętla z wątkami ───────────────────────────────────────────────────
+# -------- Glowna petla z watkami ----------------------------
 
 def process_songs(songs: list[dict]):
     existing = get_existing_tracks()
     
-    # Filtruj duplikaty z góry
+    # Filtruj duplikaty z gory
     to_process = [
         s for s in songs
         if (str(s["title"]).strip().lower(), str(s["artist"]).strip().lower()) not in existing
@@ -155,6 +158,7 @@ def process_songs(songs: list[dict]):
 
     start = time.time()
 
+    # tworzymy pule 5 watkow
     with ThreadPoolExecutor(max_workers=WORKERS) as executor:
         futures = {executor.submit(process_one, song): song for song in to_process}
 
@@ -189,16 +193,14 @@ def process_songs(songs: list[dict]):
 
     elapsed = int(time.time() - start)
     print(f"""
-Gotowe! Czas: {elapsed//60}m {elapsed%60}s
-  Pobrano tekstow:        {stats['ok']}
-  Brak tekstu:            {stats['no_lyrics']}
-  Blad jezyka:            {stats.get('lang_fail', 0)}
-  Blad tlumaczenia:       {stats.get('trans_fail', 0)}
-  Pominiete (duplikaty):  {skipped}
-  Wynik zapisany w:       {OUTPUT_CSV}
-""")
-
-# ─── Punkt wejścia ────────────────────────────────────────────────────────────
+        Gotowe! Czas: {elapsed//60}m {elapsed%60}s
+        Pobrano tekstow:        {stats['ok']}
+        Brak tekstu:            {stats['no_lyrics']}
+        Blad jezyka:            {stats.get('lang_fail', 0)}
+        Blad tlumaczenia:       {stats.get('trans_fail', 0)}
+        Pominiete (duplikaty):  {skipped}
+        Wynik zapisany w:       {OUTPUT_CSV}
+    """)
 
 if __name__ == "__main__":
     ensure_csv_exists()

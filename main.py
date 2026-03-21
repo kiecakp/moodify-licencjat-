@@ -20,9 +20,9 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from preprocessing import LyricsPreprocessor, VADERFeatureExtractor
-from features import BERTEmbeddingExtractor, TFIDFExtractor
-from evaluate import evaluate_model, print_best_report, save_visualizations
+from utils.preprocessing import LyricsPreprocessor, VADERFeatureExtractor
+from utils.features import BERTEmbeddingExtractor, TFIDFExtractor
+from utils.evaluate import evaluate_model, print_best_report, save_visualizations
 from models import SVMModel, LogisticRegressionModel, RandomForestModel, NaiveBayesModel
 
 
@@ -115,8 +115,8 @@ def print_summary(results):
 
 def main():
     parser = argparse.ArgumentParser(description='Mood classification — porównanie modeli ML')
-    parser.add_argument('--data',      default=r'd:\Git\licencjat\test\test\cleaned_training_data_watki.csv')
-    parser.add_argument('--results',   default=r'd:\Git\licencjat\test\results')
+    parser.add_argument('--data',      default=r'd:\Git\licencjat\data\cleaned_training_data.csv')
+    parser.add_argument('--results',   default=r'd:\Git\licencjat\results')
     parser.add_argument('--text-col',  default='LYRICS_EN')
     parser.add_argument('--label-col', default='MOOD_TAG')
     args = parser.parse_args()
